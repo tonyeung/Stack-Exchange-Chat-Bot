@@ -303,6 +303,31 @@ namespace StackExchangeChatService
 
         public void Start() { 
         
+            var message = Console.ReadLine();
+
+            var uri = new Uri(RoomUrl);
+            var roomId = uri.PathAndQuery.Split('/')[2];
+
+            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
+            using (var client = new HttpClient(handler))
+            {
+                client.BaseAddress = new Uri(uri.AbsoluteUri.Replace(uri.PathAndQuery, "") + "/chats/" + roomId + "/messages/new");
+                var content = new FormUrlEncodedContent(new[] 
+                {
+                    new KeyValuePair<string, string>("text", message),
+                    new KeyValuePair<string, string>("fkey", FKey.Replace("-", ""))
+                });
+
+                HttpResponseMessage response = await client.PostAsync("", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                }
+                else
+                {
+                    throw new Exception("ERROR signing into chat, status: " + response.StatusCode.ToString());
+                }
+            }
         }
         public void Stop() { 
         
