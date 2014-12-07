@@ -37,6 +37,7 @@ namespace StackExchangeChatService
         public string Username { get; set; }
         public string Password { get; set; }
         public string FKey { get; set; }
+        public string RoomUrl { get; set; }
         public CookieContainer CookieContainer { get; set; }
         private CookieCollection responseCookies;
         public ServiceMain()
@@ -45,6 +46,8 @@ namespace StackExchangeChatService
             //todo pull this into app.config
             Username = "";
             Password = "";
+            RoomUrl = "";
+            
 
             this.CookieContainer = new CookieContainer();
 
@@ -70,7 +73,12 @@ namespace StackExchangeChatService
             var nonce = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='nonce']").Attributes["value"].Value.Trim();
 
             var chatRoomList = SignInToChat(url, token, nonce).Result;
-        
+
+            var favoriteRoomsPage = GetFavoriteRooms().Result;
+            htmlDocument.LoadHtml(favoriteRoomsPage);
+            FKey = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='fkey']").Attributes["value"].Value.Trim();
+
+            var socketUri = GetSocketUri(RoomUrl).Result;
         }
 
         /// <summary>
@@ -225,6 +233,60 @@ namespace StackExchangeChatService
                 {
                     new KeyValuePair<string, string>("authToken", authToken),
                     new KeyValuePair<string, string>("nonce", nonce)
+                });
+
+                HttpResponseMessage response = await client.PostAsync("", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadAsStringAsync();
+                }
+                else
+                {
+                    throw new Exception("ERROR signing into chat, status: " + response.StatusCode.ToString());
+                }
+            }
+        }
+
+        /// <summary>
+        /// Need to hit stack exchange chat favorites page to refresh the fkey
+        /// </summary>
+        /// <returns></returns>
+        public async Task<string> GetFavoriteRooms()
+        {
+            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
+            using (var client = new HttpClient(handler))
+            {
+                client.BaseAddress = new Uri("http://chat.stackexchange.com/");
+                client.DefaultRequestHeaders.Accept.Clear();
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                HttpResponseMessage response = await client.GetAsync("chats/join/favorite");
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadAsStringAsync();
+                }
+                else
+                {
+                    throw new Exception("ERROR getting RawFKey, status: " + response.StatusCode.ToString());
+                }
+            }
+        }
+
+        public async Task<string> GetSocketUri(string RoomUrl)
+        {
+            var uri = new Uri(RoomUrl);
+            var roomId = uri.PathAndQuery.Split('/')[2];
+
+            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
+            using (var client = new HttpClient(handler))
+            {
+                client.BaseAddress = new Uri(uri.AbsoluteUri.Replace(uri.PathAndQuery, "") + "/ws-auth");
+                client.DefaultRequestHeaders.Add("Referer", RoomUrl);
+                client.DefaultRequestHeaders.Add("Origin", uri.AbsoluteUri.Replace(uri.PathAndQuery, ""));
+                var content = new FormUrlEncodedContent(new[] 
+                {
+                    new KeyValuePair<string, string>("roomid", roomId),
+                    new KeyValuePair<string, string>("fkey", FKey.Replace("-", ""))
                 });
 
                 HttpResponseMessage response = await client.PostAsync("", content);
