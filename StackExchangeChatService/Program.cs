@@ -1,4 +1,6 @@
 ﻿using HtmlAgilityPack;
+using Newtonsoft.Json.Linq;
+using SuperSocket.ClientEngine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,6 +10,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using Topshelf;
+using WebSocket4Net;
 
 namespace StackExchangeChatService
 {
@@ -40,6 +43,7 @@ namespace StackExchangeChatService
         public string RoomUrl { get; set; }
         public CookieContainer CookieContainer { get; set; }
         private CookieCollection responseCookies;
+        private WebSocket webSocket;
         public ServiceMain()
         {
             HtmlDocument htmlDocument = new HtmlDocument();
@@ -78,7 +82,7 @@ namespace StackExchangeChatService
             htmlDocument.LoadHtml(favoriteRoomsPage);
             FKey = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='fkey']").Attributes["value"].Value.Trim();
 
-            var socketUri = GetSocketUri(RoomUrl).Result;
+            StartSocketToListenToEvents();
         }
 
         /// <summary>
@@ -272,7 +276,7 @@ namespace StackExchangeChatService
             }
         }
 
-        public async Task<string> GetSocketUri(string RoomUrl)
+        public async Task<string> GetRawSocketUri(string RoomUrl)
         {
             var uri = new Uri(RoomUrl);
             var roomId = uri.PathAndQuery.Split('/')[2];
@@ -301,8 +305,79 @@ namespace StackExchangeChatService
             }
         }
 
-        public void Start() { 
-        
+        public async Task<string> GetLastEventId(string RoomUrl)
+        {
+            var uri = new Uri(RoomUrl);
+            var roomId = uri.PathAndQuery.Split('/')[2];
+
+            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
+            using (var client = new HttpClient(handler))
+            {
+                client.BaseAddress = new Uri(uri.AbsoluteUri.Replace(uri.PathAndQuery, "") + "/chats/" + roomId + "/events");
+                var content = new FormUrlEncodedContent(new[] 
+                {
+                    new KeyValuePair<string, string>("mode", "Events"),
+                    new KeyValuePair<string, string>("msgCount", "0"),
+                    new KeyValuePair<string, string>("fkey", FKey.Replace("-", ""))
+                });
+
+                HttpResponseMessage response = await client.PostAsync("", content);
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadAsStringAsync();
+                }
+                else
+                {
+                    throw new Exception("ERROR signing into chat, status: " + response.StatusCode.ToString());
+                }
+            }
+        }
+
+        public void StartSocketToListenToEvents()
+        {
+
+            var rawLastEventId = GetLastEventId(RoomUrl).Result;
+            var lastEventId = (int)JObject.Parse(rawLastEventId)["time"];
+
+            var rawSocketUri = GetRawSocketUri(RoomUrl).Result;
+            var socketUri = JObject.Parse(rawSocketUri)["url"].ToString() + "?l=" + lastEventId;
+
+            var roomUri = new Uri(RoomUrl);
+            var root = roomUri.AbsoluteUri.Replace(roomUri.PathAndQuery, "");
+
+            webSocket = new WebSocket(socketUri, "", null, null, "", root);
+            webSocket.Opened += new EventHandler(websocket_Opened);
+            webSocket.Error += new EventHandler<ErrorEventArgs>(websocket_Error);
+            webSocket.Closed += new EventHandler(websocket_Closed);
+            webSocket.MessageReceived += new EventHandler<MessageReceivedEventArgs>(websocket_MessageReceived);
+
+            webSocket.Open();
+        }
+
+        private void websocket_Opened(object sender, EventArgs e)
+        {
+            Console.WriteLine("ws opened");
+            //webSocket.Send("Hello World!");
+        }
+
+        private void websocket_Closed(object sender, EventArgs e)
+        {
+            Console.WriteLine("ws closed");
+            webSocket = null;
+            StartSocketToListenToEvents();
+        }
+
+        private void websocket_Error(object sender, ErrorEventArgs e)
+        {
+            Console.WriteLine("ws error");
+        }
+
+        private void websocket_MessageReceived(object sender, MessageReceivedEventArgs e)
+        {
+            Console.WriteLine(e.Message);
+        }
+
+        public async void Start() {
             var message = Console.ReadLine();
 
             var uri = new Uri(RoomUrl);
