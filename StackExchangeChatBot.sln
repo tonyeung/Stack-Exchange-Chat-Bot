@@ -12,6 +12,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{0A19ED
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackExchangeChatService", "StackExchangeChatService\StackExchangeChatService.csproj", "{F653202D-8A7C-46D4-99D8-F1F73A208B31}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackExchangeChatInterface", "StackExchangeChatInterface\StackExchangeChatInterface.csproj", "{7CAD87A8-64C1-4167-805D-CB45D1AE1C74}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackExchangeMessageHandlers", "StackExchangeMessageHandlers\StackExchangeMessageHandlers.csproj", "{2A583BE6-9D15-425D-8E09-ABB72E143531}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackExchangeChatInterfaces", "StackExchangeChatInterfaces\StackExchangeChatInterfaces.csproj", "{FC9EAE7D-BFEA-403C-B00A-B7DA55A4E27B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -22,6 +28,18 @@ Global
 		{F653202D-8A7C-46D4-99D8-F1F73A208B31}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F653202D-8A7C-46D4-99D8-F1F73A208B31}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F653202D-8A7C-46D4-99D8-F1F73A208B31}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7CAD87A8-64C1-4167-805D-CB45D1AE1C74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7CAD87A8-64C1-4167-805D-CB45D1AE1C74}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7CAD87A8-64C1-4167-805D-CB45D1AE1C74}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7CAD87A8-64C1-4167-805D-CB45D1AE1C74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A583BE6-9D15-425D-8E09-ABB72E143531}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A583BE6-9D15-425D-8E09-ABB72E143531}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A583BE6-9D15-425D-8E09-ABB72E143531}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A583BE6-9D15-425D-8E09-ABB72E143531}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC9EAE7D-BFEA-403C-B00A-B7DA55A4E27B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC9EAE7D-BFEA-403C-B00A-B7DA55A4E27B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC9EAE7D-BFEA-403C-B00A-B7DA55A4E27B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC9EAE7D-BFEA-403C-B00A-B7DA55A4E27B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
