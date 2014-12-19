@@ -80,8 +80,6 @@ namespace StackExchangeChatService
                     }
                 }
             });
-            var post = Console.ReadLine();
-            chatInterface.PostMessage(post);
         }
 
         public void Stop() { 
@@ -91,18 +89,26 @@ namespace StackExchangeChatService
         private ChatMessage getChatMessage(string message)
         {
             //message = @"{""r14368"":{""e"":[{""event_type"":1,""time_stamp"":1418973788,""content"":""hammer"",""id"":35648111,""user_id"":106166,""user_name"":""HoiHoi-san"",""room_id"":14368,""room_name"":""HoiHoi-san\u0027s Testbed"",""message_id"":19159074}],""t"":35648112,""d"":2},""r6697"":{""t"":35648112,""d"":2}}";
-            dynamic rawMessage = JsonConvert.DeserializeObject(message);
-            ChatMessage result = null;
+            dynamic rawMessage;
             try
             {
-                result = rawMessage.r6697.e[0].ToObject<ChatMessage>();
+                rawMessage = JsonConvert.DeserializeObject(message);
             }
-            catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException) { }
-            catch
+            catch (JsonReaderException) { return null; }
+            
+            try
             {
-                result = rawMessage.r14368.e[0].ToObject<ChatMessage>();
+                return rawMessage.r6697.e[0].ToObject<ChatMessage>();
             }
-            return result;
+            catch { }
+
+            try
+            {
+                return rawMessage.r14368.e[0].ToObject<ChatMessage>();
+            }
+            catch { }
+
+            return null;
         }
     }
 }

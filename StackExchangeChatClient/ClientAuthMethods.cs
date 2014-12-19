@@ -19,7 +19,17 @@ namespace StackExchangeChatClient
             htmlDocument.LoadHtml(rawLoginPage);
             FKey = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='fkey']").Attributes["value"].Value.Trim();
 
-            var rawLoggedInPage = SignInToOpenIdEndPoint(username, password).Result;
+            string rawLoggedInPage = string.Empty;
+            try
+            {
+                rawLoggedInPage = SignInToOpenIdEndPoint(username, password).Result;
+            }
+            catch
+            {
+                System.Threading.Thread.Sleep(1000);
+                rawLoggedInPage = SignInToOpenIdEndPoint(username, password).Result;
+            }            
+
             var signInLink = GetSignInViaOpenIdLink().Result;
             var authTokenPage = GetOpenIdAuthTokenPage(signInLink).Result;
 

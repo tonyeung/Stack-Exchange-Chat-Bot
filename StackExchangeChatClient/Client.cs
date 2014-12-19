@@ -31,13 +31,13 @@ namespace StackExchangeChatClient
             StartSocketToListenToEvents();
         }
 
-        public void PostMessage(string message, int? roomId)
+        public void PostMessage(string message, int retries = 0, int roomId = 0)
         {
             var roomUrl = this.DefaultRoomUrl;
 
             var uri = new Uri(roomUrl);
             var baseUri = uri.AbsoluteUri.Replace(uri.PathAndQuery, "");
-            if (roomId == null)
+            if (roomId == 0)
             {
                 roomId = int.Parse(uri.PathAndQuery.Split('/')[2]);    
             }
@@ -54,12 +54,44 @@ namespace StackExchangeChatClient
                 });
 
                 HttpResponseMessage response = client.PostAsync("", content).Result;
+                var responseContent = response.Content.ReadAsStringAsync();
+                dynamic postResult = responseContent.Result;
+                if (postResult.id == "null")
+                {
+                    if (retries == 1)
+                    {
+                        System.Threading.Thread.Sleep(3*1000);
+                        PostMessage(message, retries++);
+                    }
+                    else if (retries == 2)
+                    {
+                        System.Threading.Thread.Sleep(30*1000);
+                        PostMessage(message, retries++);
+                    }
+                    else if (retries == 2)
+                    {
+                        System.Threading.Thread.Sleep(2*60*1000);
+                        PostMessage(message, retries++);
+                    }                    
+                }
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new Exception("ERROR posting message, status: " + response.StatusCode.ToString());
                 }
             }
+        }
 
+
+        public void PingUser(string message, string username, int roomId = 0)
+        {
+            message = "@" + username + " " + message;
+            PostMessage(message, roomId);
+        }
+
+        public void ReplyToMessage(string message, string messageId, int roomId = 0)
+        {
+            message = ":" + messageId + " " + message;
+            PostMessage(message, roomId);
         }
     }
 }
