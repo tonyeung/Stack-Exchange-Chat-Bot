@@ -3,6 +3,6 @@ namespace StackExchangeChatInterfaces
 {
     public interface IHandleMessages
     {
-        Action<object, IClient> HandleMessage { get; }
+        Action<ChatMessage, IClient> HandleMessage { get; }
     }
 }

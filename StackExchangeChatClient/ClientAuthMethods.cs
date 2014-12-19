@@ -25,7 +25,16 @@ namespace StackExchangeChatClient
 
             htmlDocument.LoadHtml(authTokenPage);
             var redirectLink = htmlDocument.DocumentNode.SelectSingleNode("//a").Attributes["href"].Value.Trim();
-            var stackExchangePage = SignInToStackExchange(redirectLink).Result;
+            var stackExchangePage = string.Empty;
+            try
+            {
+                stackExchangePage = SignInToStackExchange(redirectLink).Result;
+            }
+            catch
+            {
+                System.Threading.Thread.Sleep(1000);
+                stackExchangePage = SignInToStackExchange(redirectLink).Result;
+            }            
 
             var chatSignInPage = GetChatSignInPage().Result;
 

@@ -8,14 +8,14 @@ namespace StackExchangeChatInterfaces
 {
     public class ChatMessage
     {
-        int event_type { get; set; }
-        int time_stamp { get; set; }
-        string content { get; set; }
-        int id { get; set; }
-        int user_id { get; set; }
-        string user_name { get; set; }
-        int room_id { get; set; }
-        string room_name { get; set; }
-        int message_id { get; set; }
+        public int event_type { get; set; }
+        public int time_stamp { get; set; }
+        public string content { get; set; }
+        public int id { get; set; }
+        public int user_id { get; set; }
+        public string user_name { get; set; }
+        public int room_id { get; set; }
+        public string room_name { get; set; }
+        public int message_id { get; set; }
     }
 }

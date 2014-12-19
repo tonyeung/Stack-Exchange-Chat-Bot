@@ -31,16 +31,16 @@ namespace StackExchangeChatClient
             StartSocketToListenToEvents();
         }
 
-        public void PostMessage(string message, string roomUrl = "")
+        public void PostMessage(string message, int? roomId)
         {
-            if (string.IsNullOrWhiteSpace(roomUrl))
-            {
-                roomUrl = this.DefaultRoomUrl;
-            }
+            var roomUrl = this.DefaultRoomUrl;
 
             var uri = new Uri(roomUrl);
             var baseUri = uri.AbsoluteUri.Replace(uri.PathAndQuery, "");
-            var roomId = uri.PathAndQuery.Split('/')[2];
+            if (roomId == null)
+            {
+                roomId = int.Parse(uri.PathAndQuery.Split('/')[2]);    
+            }
             var baseAddres = new Uri(baseUri + "/chats/" + roomId + "/messages/new");
 
             using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })

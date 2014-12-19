@@ -17,7 +17,6 @@ namespace StackExchangeChatService
     {
         static void Main(string[] args)
         {
-
             var container = new Container(x =>
             {
                 x.Scan(scan =>
@@ -62,29 +61,48 @@ namespace StackExchangeChatService
 
         public void Start()
         {
+            int userid = int.Parse(ConfigurationManager.AppSettings["userid"]);
             var username = ConfigurationManager.AppSettings["username"].ToString();
             var password = ConfigurationManager.AppSettings["password"].ToString();
             var roomUrl = ConfigurationManager.AppSettings["roomUrl"].ToString();
 
             chatInterface.StartClient(username, password, roomUrl, (object sender, object rawSocketMessage) =>
             {
-                //{"r14368":{"e":[{"event_type":1,"time_stamp":1418973788,"content":"hammer","id":35648111,"user_id":106166,"user_name":"HoiHoi-san","room_id":14368,"room_name":"HoiHoi-san\u0027s Testbed","message_id":19159074}],"t":35648112,"d":2},"r6697":{"t":35648112,"d":2}}
-                dynamic rawRoomMessage = JsonConvert.DeserializeObject(((dynamic)rawSocketMessage).Message);
-                dynamic foo = rawRoomMessage.r6697;
-                var roomMessage = string.Empty;
-                Console.WriteLine("");
-                Console.WriteLine(roomMessage);
-                foreach (var item in handlers)
+                string message = ((dynamic)rawSocketMessage).Message;
+                var roomMessage = getChatMessage(message);
+                if (roomMessage != null && roomMessage.user_id != userid)
                 {
-                    item.HandleMessage.Invoke(roomMessage, chatInterface);
+                    Console.WriteLine("");
+                    Console.WriteLine(roomMessage);
+                    foreach (var item in handlers)
+                    {
+                        item.HandleMessage.Invoke(roomMessage, chatInterface);
+                    }
                 }
             });
             var post = Console.ReadLine();
-            chatInterface.PostMessage(post, "http://chat.stackexchange.com/rooms/14368/hoihoi-sans-testbed");
+            chatInterface.PostMessage(post);
         }
 
         public void Stop() { 
         
+        }
+
+        private ChatMessage getChatMessage(string message)
+        {
+            //message = @"{""r14368"":{""e"":[{""event_type"":1,""time_stamp"":1418973788,""content"":""hammer"",""id"":35648111,""user_id"":106166,""user_name"":""HoiHoi-san"",""room_id"":14368,""room_name"":""HoiHoi-san\u0027s Testbed"",""message_id"":19159074}],""t"":35648112,""d"":2},""r6697"":{""t"":35648112,""d"":2}}";
+            dynamic rawMessage = JsonConvert.DeserializeObject(message);
+            ChatMessage result = null;
+            try
+            {
+                result = rawMessage.r6697.e[0].ToObject<ChatMessage>();
+            }
+            catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException) { }
+            catch
+            {
+                result = rawMessage.r14368.e[0].ToObject<ChatMessage>();
+            }
+            return result;
         }
     }
 }

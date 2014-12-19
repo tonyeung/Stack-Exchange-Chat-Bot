@@ -9,13 +9,13 @@ namespace StackExchangeMessageHandlers
 {
     public partial class MessageHandlers : IHandleMessages
     {
-        public Action<object, IClient> HandleMessage
+        public Action<ChatMessage, IClient> HandleMessage
         {
             get
             {
-                return delegate(object o, IClient client)
+                return (ChatMessage message, IClient client) =>
                 {
-                    client.PostMessage("hammer");
+                    client.PostMessage("hammer", message.room_id);
                 };
             }
         }        
