@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using WebSocket4Net;
 
-namespace StackExchangeChatInterface
+namespace StackExchangeChatClient
 {
     public partial class Client
     {

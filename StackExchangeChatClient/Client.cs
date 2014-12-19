@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using WebSocket4Net;
 
-namespace StackExchangeChatInterface
+namespace StackExchangeChatClient
 {
     public partial class Client : IClient
     {
@@ -18,12 +18,15 @@ namespace StackExchangeChatInterface
         private Action<object, object> MessageHandler;
         private string FKey;
 
-        public Client(string username, string password, string defaultRoomUrl, Action<object, object> messageHandler)
+        public Client()
+        {
+            this.CookieContainer = new CookieContainer();
+        }
+
+        public void StartClient(string username, string password, string defaultRoomUrl, Action<object, object> messageHandler)
         {
             this.DefaultRoomUrl = defaultRoomUrl;
-            this.CookieContainer = new CookieContainer();
             this.MessageHandler = messageHandler;
-
             SignIn(username, password);
             StartSocketToListenToEvents();
         }

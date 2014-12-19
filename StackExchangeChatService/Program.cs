@@ -1,9 +1,11 @@
-﻿using StackExchangeChatInterface;
+﻿using Newtonsoft.Json;
 using StackExchangeChatInterfaces;
 using StructureMap;
+using StructureMap.Configuration.DSL;
 using StructureMap.Graph;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,6 +17,7 @@ namespace StackExchangeChatService
     {
         static void Main(string[] args)
         {
+
             var container = new Container(x =>
             {
                 x.Scan(scan =>
@@ -22,16 +25,18 @@ namespace StackExchangeChatService
                     scan.AssembliesFromApplicationBaseDirectory();
                     scan.ExcludeNamespace("StructureMap");
                     scan.WithDefaultConventions();
-                    scan.AddAllTypesOf<IMessageHandlers>(); //need to copy the dll instead of directly referencing it, same goes for the client dll
+                    scan.AddAllTypesOf<IHandleMessages>(); //need to copy MessageHandlers and ChatClient dlls into the service bin folder instead of referencing
                 });
-                x.For<IClient>().Use<Client>(); //need to check if there's a way to scan for this and still get an instance via Container like line 59
             });
+
+            var client = container.GetInstance<IClient>();
+            var handlers = container.GetAllInstances<IHandleMessages>();
 
             HostFactory.Run(x =>
             {
                 x.Service<ServiceMain>(s =>
                 {
-                    s.ConstructUsing(name => new ServiceMain(container));
+                    s.ConstructUsing(name => new ServiceMain(client, handlers));
                     s.WhenStarted(tc => tc.Start());
                     s.WhenStopped(tc => tc.Stop());
                 });
@@ -47,35 +52,35 @@ namespace StackExchangeChatService
     public class ServiceMain
     {
         private IClient chatInterface;
+        private IEnumerable<IHandleMessages> handlers;
 
-        public ServiceMain(IContainer structureMapContainer)
+        public ServiceMain(IClient client, IEnumerable<IHandleMessages> handlers)
         {
-            var username = "";
-            var password = "";
-            var roomUrl = "";
-
-            var messageHandlers = structureMapContainer.GetAllInstances<IMessageHandlers>();
-
-            chatInterface = structureMapContainer
-                .With("username").EqualTo(username)
-                .With("password").EqualTo(password)
-                .With("defaultRoomUrl").EqualTo(roomUrl)
-                .With<Action<object, object>>(delegate(object sender, object messageWrapper)
-                    {
-                        //{"r14368":{"e":[{"event_type":1,"time_stamp":1418019645,"content":"{\u0026quot;r‌​14368\u0026quot;:{\u0026quot;t\u0026quot;:35251580,\u0026quot;d\u0026quot;:1}}","‌​id":35251581,"user_id":106166,"user_name":"HoiHoi-san","room_id":14368,"room_name‌​":"HoiHoi-san\u0027s Testbed","message_id":18952030}],"t":35251581,"d":1}}
-                        string message = ((dynamic)messageWrapper).Message;
-                        Console.WriteLine("");
-                        Console.WriteLine(message);
-                        foreach (var item in messageHandlers)
-                        {
-                            item.MessageHandler.Invoke(message, chatInterface);
-                        }                        
-                    }).GetInstance<IClient>();
+            chatInterface = client;
+            this.handlers = handlers;
         }
 
-        public void Start() {
-            var message = Console.ReadLine();
-            chatInterface.PostMessage(message, "http://chat.stackexchange.com/rooms/14368/hoihoi-sans-testbed");
+        public void Start()
+        {
+            var username = ConfigurationManager.AppSettings["username"].ToString();
+            var password = ConfigurationManager.AppSettings["password"].ToString();
+            var roomUrl = ConfigurationManager.AppSettings["roomUrl"].ToString();
+
+            chatInterface.StartClient(username, password, roomUrl, (object sender, object rawSocketMessage) =>
+            {
+                //{"r14368":{"e":[{"event_type":1,"time_stamp":1418973788,"content":"hammer","id":35648111,"user_id":106166,"user_name":"HoiHoi-san","room_id":14368,"room_name":"HoiHoi-san\u0027s Testbed","message_id":19159074}],"t":35648112,"d":2},"r6697":{"t":35648112,"d":2}}
+                dynamic rawRoomMessage = JsonConvert.DeserializeObject(((dynamic)rawSocketMessage).Message);
+                dynamic foo = rawRoomMessage.r6697;
+                var roomMessage = string.Empty;
+                Console.WriteLine("");
+                Console.WriteLine(roomMessage);
+                foreach (var item in handlers)
+                {
+                    item.HandleMessage.Invoke(roomMessage, chatInterface);
+                }
+            });
+            var post = Console.ReadLine();
+            chatInterface.PostMessage(post, "http://chat.stackexchange.com/rooms/14368/hoihoi-sans-testbed");
         }
 
         public void Stop() { 

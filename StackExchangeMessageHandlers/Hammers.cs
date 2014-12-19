@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace StackExchangeMessageHandlers
 {
-    public partial class MessageHandlers : IMessageHandlers
+    public partial class MessageHandlers : IHandleMessages
     {
-        public Action<object, IClient> MessageHandler
+        public Action<object, IClient> HandleMessage
         {
             get
             {

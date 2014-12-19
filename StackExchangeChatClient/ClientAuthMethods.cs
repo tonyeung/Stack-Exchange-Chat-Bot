@@ -7,7 +7,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace StackExchangeChatInterface
+namespace StackExchangeChatClient
 {
     public partial class Client
     {

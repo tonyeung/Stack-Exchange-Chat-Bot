@@ -34,6 +34,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=6.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\packages\Newtonsoft.Json.6.0.6\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="StructureMap">
       <HintPath>..\packages\structuremap.3.1.4.143\lib\net40\StructureMap.dll</HintPath>
     </Reference>
@@ -41,6 +45,7 @@
       <HintPath>..\packages\structuremap.3.1.4.143\lib\net40\StructureMap.Net4.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Net" />
     <Reference Include="System.Net.Http" />
@@ -58,17 +63,19 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\StackExchangeChatClient\StackExchangeChatClient.csproj">
+      <Project>{356722d3-07ab-43b1-9c86-7a0ee26be483}</Project>
+      <Name>StackExchangeChatClient</Name>
+    </ProjectReference>
     <ProjectReference Include="..\StackExchangeChatInterfaces\StackExchangeChatInterfaces.csproj">
       <Project>{fc9eae7d-bfea-403c-b00a-b7da55a4e27b}</Project>
       <Name>StackExchangeChatInterfaces</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\StackExchangeChatInterface\StackExchangeChatInterface.csproj">
-      <Project>{7cad87a8-64c1-4167-805d-cb45d1ae1c74}</Project>
-      <Name>StackExchangeChatInterface</Name>
     </ProjectReference>
     <ProjectReference Include="..\StackExchangeMessageHandlers\StackExchangeMessageHandlers.csproj">
       <Project>{2a583be6-9d15-425d-8e09-abb72e143531}</Project>
