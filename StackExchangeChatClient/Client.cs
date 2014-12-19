@@ -1,4 +1,5 @@
-﻿using StackExchangeChatInterfaces;
+﻿using Newtonsoft.Json;
+using StackExchangeChatInterfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -55,8 +56,9 @@ namespace StackExchangeChatClient
 
                 HttpResponseMessage response = client.PostAsync("", content).Result;
                 var responseContent = response.Content.ReadAsStringAsync();
-                dynamic postResult = responseContent.Result;
-                if (postResult.id == "null")
+                dynamic postResult = JsonConvert.DeserializeObject(responseContent.Result);
+                int test = 0;
+                if (!int.TryParse(postResult.id, out test))
                 {
                     if (retries == 1)
                     {
@@ -68,7 +70,7 @@ namespace StackExchangeChatClient
                         System.Threading.Thread.Sleep(30*1000);
                         PostMessage(message, retries++);
                     }
-                    else if (retries == 2)
+                    else if (retries == 3)
                     {
                         System.Threading.Thread.Sleep(2*60*1000);
                         PostMessage(message, retries++);
