@@ -19,7 +19,7 @@ namespace StackExchangeChatClient
             htmlDocument.LoadHtml(rawLoginPage);
             FKey = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='fkey']").Attributes["value"].Value.Trim();
 
-            string rawLoggedInPage = string.Empty;
+            var rawLoggedInPage = string.Empty;
             try
             {
                 rawLoggedInPage = SignInToOpenIdEndPoint(username, password).Result;
@@ -28,10 +28,29 @@ namespace StackExchangeChatClient
             {
                 System.Threading.Thread.Sleep(1000);
                 rawLoggedInPage = SignInToOpenIdEndPoint(username, password).Result;
-            }            
+            }
 
-            var signInLink = GetSignInViaOpenIdLink().Result;
-            var authTokenPage = GetOpenIdAuthTokenPage(signInLink).Result;
+            var signInLink = string.Empty;
+            try
+            {
+                signInLink = GetSignInViaOpenIdLink().Result;
+            }
+            catch
+            {
+                System.Threading.Thread.Sleep(1000);
+                signInLink = GetSignInViaOpenIdLink().Result;
+            }
+
+            var authTokenPage = string.Empty;
+            try
+            {
+                authTokenPage = GetOpenIdAuthTokenPage(signInLink).Result;
+            }
+            catch
+            {
+                System.Threading.Thread.Sleep(1000);
+                authTokenPage = GetOpenIdAuthTokenPage(signInLink).Result;
+            }
 
             htmlDocument.LoadHtml(authTokenPage);
             var redirectLink = htmlDocument.DocumentNode.SelectSingleNode("//a").Attributes["href"].Value.Trim();
@@ -44,9 +63,18 @@ namespace StackExchangeChatClient
             {
                 System.Threading.Thread.Sleep(1000);
                 stackExchangePage = SignInToStackExchange(redirectLink).Result;
-            }            
+            }
 
-            var chatSignInPage = GetChatSignInPage().Result;
+            var chatSignInPage = string.Empty;
+            try
+            {
+                chatSignInPage = GetChatSignInPage().Result;
+            }
+            catch
+            {
+                System.Threading.Thread.Sleep(1000);
+                chatSignInPage = GetChatSignInPage().Result; 
+            }            
 
             htmlDocument.LoadHtml(chatSignInPage);
             var url = htmlDocument.DocumentNode.SelectSingleNode("//form[@id='chat-login-form']").Attributes["action"].Value.Trim();

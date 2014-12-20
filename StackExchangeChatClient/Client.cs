@@ -58,22 +58,22 @@ namespace StackExchangeChatClient
                 var responseContent = response.Content.ReadAsStringAsync();
                 dynamic postResult = JsonConvert.DeserializeObject(responseContent.Result);
                 int test = 0;
-                if (!int.TryParse(postResult.id, out test))
+                if (!int.TryParse(postResult.id.ToString(), out test))
                 {
-                    if (retries == 1)
+                    if (retries == 0)
                     {
-                        System.Threading.Thread.Sleep(3*1000);
-                        PostMessage(message, retries++);
+                        System.Threading.Thread.Sleep(10*1000);
+                        PostMessage(message, retries + 1, roomId);
+                    }
+                    else if (retries == 1)
+                    {
+                        System.Threading.Thread.Sleep(30*1000);
+                        PostMessage(message, retries + 1, roomId);
                     }
                     else if (retries == 2)
                     {
-                        System.Threading.Thread.Sleep(30*1000);
-                        PostMessage(message, retries++);
-                    }
-                    else if (retries == 3)
-                    {
                         System.Threading.Thread.Sleep(2*60*1000);
-                        PostMessage(message, retries++);
+                        PostMessage(message, retries + 1, roomId);
                     }                    
                 }
                 if (!response.IsSuccessStatusCode)
@@ -90,7 +90,7 @@ namespace StackExchangeChatClient
             PostMessage(message, roomId);
         }
 
-        public void ReplyToMessage(string message, string messageId, int roomId = 0)
+        public void ReplyToMessage(string message, int messageId, int roomId = 0)
         {
             message = ":" + messageId + " " + message;
             PostMessage(message, roomId);
