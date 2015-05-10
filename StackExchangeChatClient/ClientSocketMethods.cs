@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
+using StackExchangeChatClient.Helpers;
 using SuperSocket.ClientEngine;
 using System;
 using System.Collections.Generic;
@@ -21,7 +22,7 @@ namespace StackExchangeChatClient
         /// Only one socket is required to be maintained because it gets all the messages from all joined rooms
         /// </summary>
         /// <param name="roomUrl"></param>
-        private void StartSocketToListenToEvents(string roomUrl = "")
+        private async Task StartSocketToListenToEvents(string roomUrl = "")
         {
             var isDefaultRoom = false;
             if (string.IsNullOrWhiteSpace(roomUrl))
@@ -29,10 +30,10 @@ namespace StackExchangeChatClient
                 isDefaultRoom = true;
                 roomUrl = this.DefaultRoomUrl;
             }
-            var rawLastEventId = GetLastEventId(roomUrl).Result;
+            var rawLastEventId = await GetLastEventId(roomUrl);
             var lastEventId = (int)JObject.Parse(rawLastEventId)["time"];
 
-            var rawSocketUri = GetRawSocketUri(roomUrl).Result;
+            var rawSocketUri = await GetRawSocketUri(roomUrl);
             var socketUri = JObject.Parse(rawSocketUri)["url"].ToString() + "?l=" + lastEventId;
 
             var roomUri = new Uri(roomUrl);
@@ -61,7 +62,7 @@ namespace StackExchangeChatClient
         {
             Console.WriteLine("ws closed");
             webSocket = null;
-            StartSocketToListenToEvents();
+            StartSocketToListenToEvents().RunSynchronously();
         }
 
         private void websocket_Error(object sender, ErrorEventArgs e)
@@ -81,28 +82,16 @@ namespace StackExchangeChatClient
             var roomId = uri.PathAndQuery.Split('/')[2];
             var root = uri.AbsoluteUri.Replace(uri.PathAndQuery, "");
 
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
-            {
-                client.BaseAddress = new Uri(root + "/ws-auth");
-                client.DefaultRequestHeaders.Add("Referer", roomUrl);
-                client.DefaultRequestHeaders.Add("Origin", root);
-                var content = new FormUrlEncodedContent(new[] 
+            var message = new HttpRequestMessage();
+            message.Headers.Add("Referer", roomUrl);
+            message.Headers.Add("Origin", root);
+            var content = new FormUrlEncodedContent(new[] 
                 {
                     new KeyValuePair<string, string>("roomid", roomId),
                     new KeyValuePair<string, string>("fkey", FKey)
                 });
 
-                HttpResponseMessage response = await client.PostAsync("", content);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR signing into chat, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute(root + "/ws-auth", "POST", content, message.Headers);
         }
 
         private async Task<string> GetLastEventId(string roomUrl)
@@ -111,27 +100,16 @@ namespace StackExchangeChatClient
             var roomId = uri.PathAndQuery.Split('/')[2];
             var root = uri.AbsoluteUri.Replace(uri.PathAndQuery, "");
 
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
-            {
-                client.BaseAddress = new Uri(root + "/chats/" + roomId + "/events");
-                var content = new FormUrlEncodedContent(new[] 
+
+            var url = root + "/chats/" + roomId + "/events";
+            var content = new FormUrlEncodedContent(new[] 
                 {
                     new KeyValuePair<string, string>("mode", "Events"),
                     new KeyValuePair<string, string>("msgCount", "0"),
                     new KeyValuePair<string, string>("fkey", FKey)
                 });
 
-                HttpResponseMessage response = await client.PostAsync("", content);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR signing into chat, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute(url, "POST", content);
         }
     }
 }

@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Threading.Tasks;
 namespace StackExchangeChatInterfaces
 {
     public interface IClient
     {
-        void StartClient(string username, string password, string defaultRoomUrl, Action<object, object> rawSocketMessage);
-        void PostMessage(string message, int retries = 0, int roomId = 0);
-        void PingUser(string message, string username, int roomId = 0);
-        void ReplyToMessage(string message, int messageId, int roomId = 0);
+        Task PingUserAsync(string message, string username, int roomId = 0);
+        Task PostMessageAsync(string message, int roomId = 0);
+        Task ReplyToMessage(string message, int messageId, int roomId = 0);
+        Task StartClientAsync(string username, string password, string defaultRoomUrl, Action<object, object> messageHandler);
     }
 }

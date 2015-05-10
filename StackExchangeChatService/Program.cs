@@ -66,7 +66,7 @@ namespace StackExchangeChatService
             var password = ConfigurationManager.AppSettings["password"].ToString();
             var roomUrl = ConfigurationManager.AppSettings["roomUrl"].ToString();
 
-            chatInterface.StartClient(username, password, roomUrl, (object sender, object rawSocketMessage) =>
+            chatInterface.StartClientAsync(username, password, roomUrl, (object sender, object rawSocketMessage) =>
             {
                 string message = ((dynamic)rawSocketMessage).Message;
                 var roomMessage = getChatMessage(message);

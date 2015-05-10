@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using StackExchangeChatClient.Helpers;
 using StackExchangeChatInterfaces;
 using System;
 using System.Collections.Generic;
@@ -14,25 +15,20 @@ namespace StackExchangeChatClient
 {
     public partial class Client : IClient
     {
-        private CookieContainer CookieContainer;
         private string DefaultRoomUrl;
         private Action<object, object> MessageHandler;
         private string FKey;
 
-        public Client()
-        {
-            this.CookieContainer = new CookieContainer();
-        }
 
-        public void StartClient(string username, string password, string defaultRoomUrl, Action<object, object> messageHandler)
+        public async Task StartClientAsync(string username, string password, string defaultRoomUrl, Action<object, object> messageHandler)
         {
             this.DefaultRoomUrl = defaultRoomUrl;
             this.MessageHandler = messageHandler;
-            SignIn(username, password);
-            StartSocketToListenToEvents();
+            await SignInAsync(username, password);
+            await StartSocketToListenToEvents();
         }
 
-        public void PostMessage(string message, int retries = 0, int roomId = 0)
+        public async Task PostMessageAsync(string message, int roomId = 0)
         {
             var roomUrl = this.DefaultRoomUrl;
 
@@ -40,60 +36,29 @@ namespace StackExchangeChatClient
             var baseUri = uri.AbsoluteUri.Replace(uri.PathAndQuery, "");
             if (roomId == 0)
             {
-                roomId = int.Parse(uri.PathAndQuery.Split('/')[2]);    
+                roomId = int.Parse(uri.PathAndQuery.Split('/')[2]);
             }
-            var baseAddres = new Uri(baseUri + "/chats/" + roomId + "/messages/new");
+            var baseAddres = baseUri + "/chats/" + roomId + "/messages/new";
 
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
+            var content = new FormUrlEncodedContent(new[] 
             {
-                client.BaseAddress = baseAddres;
-                var content = new FormUrlEncodedContent(new[] 
-                {
-                    new KeyValuePair<string, string>("text", message),
-                    new KeyValuePair<string, string>("fkey", FKey)
-                });
+                new KeyValuePair<string, string>("text", message),
+                new KeyValuePair<string, string>("fkey", FKey)
+            });
 
-                HttpResponseMessage response = client.PostAsync("", content).Result;
-                var responseContent = response.Content.ReadAsStringAsync();
-                dynamic postResult = JsonConvert.DeserializeObject(responseContent.Result);
-                int test = 0;
-                if (!int.TryParse(postResult.id.ToString(), out test))
-                {
-                    if (retries == 0)
-                    {
-                        System.Threading.Thread.Sleep(10*1000);
-                        PostMessage(message, retries + 1, roomId);
-                    }
-                    else if (retries == 1)
-                    {
-                        System.Threading.Thread.Sleep(30*1000);
-                        PostMessage(message, retries + 1, roomId);
-                    }
-                    else if (retries == 2)
-                    {
-                        System.Threading.Thread.Sleep(2*60*1000);
-                        PostMessage(message, retries + 1, roomId);
-                    }                    
-                }
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new Exception("ERROR posting message, status: " + response.StatusCode.ToString());
-                }
-            }
+            await HttpClientWithRetries.Execute(baseAddres, "POST", content);
         }
 
-
-        public void PingUser(string message, string username, int roomId = 0)
+        public async Task PingUserAsync(string message, string username, int roomId = 0)
         {
             message = "@" + username + " " + message;
-            PostMessage(message, roomId);
+            await PostMessageAsync(message, roomId);
         }
 
-        public void ReplyToMessage(string message, int messageId, int roomId = 0)
+        public async Task ReplyToMessage(string message, int messageId, int roomId = 0)
         {
             message = ":" + messageId + " " + message;
-            PostMessage(message, roomId);
+            await PostMessageAsync(message, roomId);
         }
     }
 }

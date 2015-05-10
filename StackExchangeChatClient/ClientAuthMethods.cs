@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using StackExchangeChatClient.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,271 +12,136 @@ namespace StackExchangeChatClient
 {
     public partial class Client
     {
-        private void SignIn(string username, string password)
+        private async Task SignInAsync(string username, string password)
         {
-            HtmlDocument htmlDocument = new HtmlDocument();
-            var rawLoginPage = GetLoginPage().Result;
-
-            htmlDocument.LoadHtml(rawLoginPage);
-            FKey = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='fkey']").Attributes["value"].Value.Trim();
-
-            var rawLoggedInPage = string.Empty;
             try
             {
-                rawLoggedInPage = SignInToOpenIdEndPoint(username, password).Result;
-            }
-            catch
-            {
-                System.Threading.Thread.Sleep(1000);
-                rawLoggedInPage = SignInToOpenIdEndPoint(username, password).Result;
-            }
+                HtmlDocument htmlDocument = new HtmlDocument();
+                var rawLoginPage = await GetLoginPageAsync();
 
-            var signInLink = string.Empty;
-            try
-            {
-                signInLink = GetSignInViaOpenIdLink().Result;
-            }
-            catch
-            {
-                System.Threading.Thread.Sleep(1000);
-                signInLink = GetSignInViaOpenIdLink().Result;
-            }
+                htmlDocument.LoadHtml(rawLoginPage);
+                FKey = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='fkey']").Attributes["value"].Value.Trim();
 
-            var authTokenPage = string.Empty;
-            try
-            {
-                authTokenPage = GetOpenIdAuthTokenPage(signInLink).Result;
-            }
-            catch
-            {
-                System.Threading.Thread.Sleep(1000);
-                authTokenPage = GetOpenIdAuthTokenPage(signInLink).Result;
-            }
+                var rawLoggedInPage = await SignInToOpenIdEndPointAsync(username, password);
+                var signInLink = await GetSignInViaOpenIdLinkAsync();
+                var authTokenPage = await GetOpenIdAuthTokenPageAsync(signInLink);
 
-            htmlDocument.LoadHtml(authTokenPage);
-            var redirectLink = htmlDocument.DocumentNode.SelectSingleNode("//a").Attributes["href"].Value.Trim();
-            var stackExchangePage = string.Empty;
-            try
-            {
-                stackExchangePage = SignInToStackExchange(redirectLink).Result;
+                htmlDocument.LoadHtml(authTokenPage);
+                var redirectLink = htmlDocument.DocumentNode.SelectSingleNode("//a").Attributes["href"].Value.Trim();
+                var stackExchangePage = await SignInToStackExchangeAsync(redirectLink);
+
+                var chatSignInPage = await GetChatSignInPageAsync();
+
+                htmlDocument.LoadHtml(chatSignInPage);
+                var url = htmlDocument.DocumentNode.SelectSingleNode("//form[@id='chat-login-form']").Attributes["action"].Value.Trim();
+                var token = htmlDocument.DocumentNode.SelectSingleNode("//input[@id='authToken']").Attributes["value"].Value.Trim();
+                var nonce = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='nonce']").Attributes["value"].Value.Trim();
+
+                var chatRoomList = await SignInToChatAsync(url, token, nonce);
+
+                var favoriteRoomsPage = await GetFavoriteRoomsAsync();
+                htmlDocument.LoadHtml(favoriteRoomsPage);
+                FKey = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='fkey']").Attributes["value"].Value.Trim();
             }
-            catch
+            catch (Exception ex)
             {
-                System.Threading.Thread.Sleep(1000);
-                stackExchangePage = SignInToStackExchange(redirectLink).Result;
+                throw ex;
             }
-
-            var chatSignInPage = string.Empty;
-            try
-            {
-                chatSignInPage = GetChatSignInPage().Result;
-            }
-            catch
-            {
-                System.Threading.Thread.Sleep(1000);
-                chatSignInPage = GetChatSignInPage().Result; 
-            }            
-
-            htmlDocument.LoadHtml(chatSignInPage);
-            var url = htmlDocument.DocumentNode.SelectSingleNode("//form[@id='chat-login-form']").Attributes["action"].Value.Trim();
-            var token = htmlDocument.DocumentNode.SelectSingleNode("//input[@id='authToken']").Attributes["value"].Value.Trim();
-            var nonce = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='nonce']").Attributes["value"].Value.Trim();
-
-            var chatRoomList = SignInToChat(url, token, nonce).Result;
-
-            var favoriteRoomsPage = GetFavoriteRooms().Result;
-            htmlDocument.LoadHtml(favoriteRoomsPage);
-            FKey = htmlDocument.DocumentNode.SelectSingleNode("//input[@name='fkey']").Attributes["value"].Value.Trim();
         }
 
         /// <summary>
         /// Need to hit stack exchange login page which contains the fkey
         /// </summary>
         /// <returns></returns>
-        private async Task<string> GetLoginPage()
+        private async Task<string> GetLoginPageAsync()
         {
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
-            {
-                client.BaseAddress = new Uri("https://openid.stackexchange.com/");
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var url = "https://openid.stackexchange.com/account/login";
+            var message = new HttpRequestMessage();
+            message.Headers.Accept.Clear();
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                HttpResponseMessage response = await client.GetAsync("account/login");
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR getting RawFKey, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute(url, "GET", headers: message.Headers);
         }
 
-        private async Task<string> SignInToOpenIdEndPoint(string email, string password)
+        private async Task<string> SignInToOpenIdEndPointAsync(string email, string password)
         {
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
+            var content = new FormUrlEncodedContent(new[] 
             {
-                client.BaseAddress = new Uri("https://openid.stackexchange.com/");
-                var content = new FormUrlEncodedContent(new[] 
-                {
-                    new KeyValuePair<string, string>("fkey", FKey),
-                    new KeyValuePair<string, string>("email", email),
-                    new KeyValuePair<string, string>("password", password)
-                });
+                new KeyValuePair<string, string>("fkey", FKey),
+                new KeyValuePair<string, string>("email", email),
+                new KeyValuePair<string, string>("password", password)
+            });
 
-                HttpResponseMessage response = await client.PostAsync("account/login/submit", content);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR logging in, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute("https://openid.stackexchange.com/account/login/submit", "POST", content);
         }
 
-        private async Task<string> GetSignInViaOpenIdLink()
+        private async Task<string> GetSignInViaOpenIdLinkAsync()
         {
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
+            var content = new FormUrlEncodedContent(new[] 
             {
-                client.BaseAddress = new Uri("https://stackexchange.com/");
-                var content = new FormUrlEncodedContent(new[] 
-                {
-                    new KeyValuePair<string, string>("from", "https://stackexchange.com/users/login#log-in")
-                });
+                new KeyValuePair<string, string>("from", "https://stackexchange.com/users/login#log-in")
+            });
 
-                HttpResponseMessage response = await client.PostAsync("users/signin", content);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR getting open id sign in link, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute("https://stackexchange.com/users/signin", "POST", content);
         }
 
-        private async Task<string> GetOpenIdAuthTokenPage(string signInLink)
+        private async Task<string> GetOpenIdAuthTokenPageAsync(string signInLink)
         {
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
-            {
-                client.BaseAddress = new Uri(signInLink);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var message = new HttpRequestMessage();
+            message.Headers.Accept.Clear();
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                HttpResponseMessage response = await client.GetAsync("");
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR getting open id auth token, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute(signInLink, "GET", headers: message.Headers);
         }
 
-        private async Task<string> SignInToStackExchange(string signInLink)
+        private async Task<string> SignInToStackExchangeAsync(string redirectLink)
         {
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
-            {
-                client.BaseAddress = new Uri(signInLink);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var message = new HttpRequestMessage();
+            message.Headers.Accept.Clear();
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                HttpResponseMessage response = await client.GetAsync("");
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR signing in to Stack Exchange, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute(redirectLink, "GET", headers: message.Headers);
         }
 
         /// <summary>
         /// Gets the chat Sign In page which contains the url, auth token, and nonce required for login
         /// </summary>
         /// <returns></returns>
-        private async Task<string> GetChatSignInPage()
+        private async Task<string> GetChatSignInPageAsync()
         {
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
-            {
-                client.BaseAddress = new Uri("http://stackexchange.com/users/chat-login");
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var url = "http://stackexchange.com/users/chat-login";
+            var message = new HttpRequestMessage();
+            message.Headers.Accept.Clear();
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                HttpResponseMessage response = await client.GetAsync("");
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR getting the chat sign in page, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute(url, "GET", headers: message.Headers);
         }
 
-        private async Task<string> SignInToChat(string signInUrl, string authToken, string nonce)
+        private async Task<string> SignInToChatAsync(string signInUrl, string authToken, string nonce)
         {
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
-            {
-                client.BaseAddress = new Uri(signInUrl);
-                client.DefaultRequestHeaders.Add("Referer", "http://stackexchange.com/users/chat-login");
-                var content = new FormUrlEncodedContent(new[] 
+            var message = new HttpRequestMessage();
+            message.Headers.Add("Referer", "http://stackexchange.com/users/chat-login");
+            var content = new FormUrlEncodedContent(new[] 
                 {
                     new KeyValuePair<string, string>("authToken", authToken),
                     new KeyValuePair<string, string>("nonce", nonce)
                 });
 
-                HttpResponseMessage response = await client.PostAsync("", content);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR signing into chat, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute(signInUrl, "POST", content, message.Headers);
         }
 
         /// <summary>
         /// Need to hit stack exchange chat favorites page to refresh the fkey
         /// </summary>
         /// <returns></returns>
-        private async Task<string> GetFavoriteRooms()
+        private async Task<string> GetFavoriteRoomsAsync()
         {
-            using (var handler = new HttpClientHandler() { CookieContainer = this.CookieContainer })
-            using (var client = new HttpClient(handler))
-            {
-                client.BaseAddress = new Uri("http://chat.stackexchange.com/");
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var url = "http://chat.stackexchange.com/chats/join/favorite";
+            var message = new HttpRequestMessage();
+            message.Headers.Accept.Clear();
+            message.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                HttpResponseMessage response = await client.GetAsync("chats/join/favorite");
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsStringAsync();
-                }
-                else
-                {
-                    throw new Exception("ERROR getting the Favorite Rooms, status: " + response.StatusCode.ToString());
-                }
-            }
+            return await HttpClientWithRetries.Execute(url, "GET", headers: message.Headers);
         }
     }
 }
